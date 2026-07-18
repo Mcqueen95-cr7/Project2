@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "static-server",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/napatrsuparapinyopapkul/Desktop/Project2/serve.py"],
+      "port": 8787
+    }
+  ]
+}

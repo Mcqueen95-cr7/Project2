@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#131316" />
+<title>Daily — Tasks, Expenses & Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ===== HOME ===== -->
+  <section class="view" id="view-home" data-view="home">
+    <header class="topbar">
+      <h1 class="greeting">Good Morning,<br/><span id="userName">Napatr</span></h1>
+      <div class="topbar-actions">
+        <button class="icon-btn" id="bellBtn" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 22a2.4 2.4 0 0 0 2.4-2.4h-4.8A2.4 2.4 0 0 0 12 22Zm7.2-6V11a7.2 7.2 0 0 0-5.4-6.97V3a1.8 1.8 0 1 0-3.6 0v1.03A7.2 7.2 0 0 0 4.8 11v5l-1.8 1.8v.9h18v-.9L19.2 16Z" fill="currentColor"/></svg>
+        </button>
+        <div class="avatar" aria-label="Profile">🐼</div>
+      </div>
+    </header>
+
+    <button class="cta-pill" id="createTaskBtn">
+      <span class="plus">+</span> Create new task
+    </button>
+
+    <div class="date-row">
+      <span id="todayLabel">Sat 18 Jul</span>
+      <button class="grid-btn" id="filterMoreBtn" aria-label="More filters">
+        <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="6" cy="6" r="2" fill="currentColor"/><circle cx="12" cy="6" r="2" fill="currentColor"/><circle cx="18" cy="6" r="2" fill="currentColor"/><circle cx="6" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="18" cy="12" r="2" fill="currentColor"/><circle cx="6" cy="18" r="2" fill="currentColor"/><circle cx="12" cy="18" r="2" fill="currentColor"/><circle cx="18" cy="18" r="2" fill="currentColor"/></svg>
+      </button>
+    </div>
+
+    <div class="pill-scroll" id="rangeFilters">
+      <button class="filter-pill active" data-range="all">All</button>
+      <button class="filter-pill" data-range="day">Days</button>
+      <button class="filter-pill" data-range="month">Monthly</button>
+      <button class="filter-pill" data-range="year">Yearly</button>
+    </div>
+
+    <div class="progress-card" id="progressCard">
+      <div class="blob blob-a"></div>
+      <div class="blob blob-b"></div>
+      <div class="progress-top">
+        <span class="progress-label">Today's progress</span>
+        <button class="chevron-btn lime" id="toggleTasksBtn" aria-label="Toggle tasks">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 15l6-6 6 6" stroke="#131316" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="progress-value"><span id="progressPct">0</span>%</div>
+      <div class="progress-sub" id="progressSub">Task</div>
+
+      <div class="task-list" id="taskList" hidden>
+        <div class="checkpoints-sub" id="checkpointsSub">0/3 checkpoints done</div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <label class="task-row" data-task="learning">
+          <span class="task-emoji">📖</span>
+          <span class="task-text">Learning</span>
+          <input type="checkbox" data-task-id="learning" />
+          <span class="task-circle"></span>
+        </label>
+        <label class="task-row" data-task="gym">
+          <span class="task-emoji">🏋️</span>
+          <span class="task-text">Gym</span>
+          <input type="checkbox" data-task-id="gym" />
+          <span class="task-circle"></span>
+        </label>
+        <label class="task-row" data-task="relax">
+          <span class="task-emoji">🌱</span>
+          <span class="task-text">Relax</span>
+          <input type="checkbox" data-task-id="relax" />
+          <span class="task-circle"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="split-row">
+      <button class="mini-card lavender" id="goExpensesCard">
+        <div class="mini-top">
+          <span class="mini-label">Expenses</span>
+          <span class="mini-icon lime">
+            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M6 15l6-6 6 6" stroke="#131316" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="mini-value"><span id="todayExpenseValue">฿0</span></div>
+        <div class="mini-sub">Today</div>
+      </button>
+
+      <button class="mini-card lavender" id="goNotesCard">
+        <div class="mini-top">
+          <span class="mini-label">Notes</span>
+          <span class="mini-icon dark">
+            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M6 9l6 6 6-6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="mini-value note-initial" id="noteInitial">—</div>
+        <div class="mini-sub" id="noteSub">How today went</div>
+      </button>
+    </div>
+
+    <h2 class="section-title">Overview Statistics</h2>
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-value" id="statTime">0h 0m</div>
+        <div class="stat-label">Total Time</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-value" id="statProductivity">0%</div>
+        <div class="stat-label">Productivity</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-value" id="statSpending">0%</div>
+        <div class="stat-label">Spending</div>
+      </div>
+    </div>
+
+    <div class="extra-tasks" id="extraTasks" hidden>
+      <h2 class="section-title">Extra Tasks</h2>
+      <div id="extraTaskList"></div>
+    </div>
+
+    <div class="scroll-spacer"></div>
+  </section>
+
+  <!-- ===== EXPENSES ===== -->
+  <section class="view" id="view-expenses" data-view="expenses" hidden>
+    <header class="page-header">
+      <button class="back-btn" data-back>‹</button>
+      <h1>Expenses</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="pill-scroll" id="expensePeriodFilters">
+      <button class="filter-pill active" data-period="day">Day</button>
+      <button class="filter-pill" data-period="week">Week</button>
+      <button class="filter-pill" data-period="month">Month</button>
+      <button class="filter-pill" data-period="total">Total</button>
+    </div>
+
+    <div class="progress-card small" id="expenseTotalCard">
+      <div class="blob blob-a"></div>
+      <div class="blob blob-b"></div>
+      <div class="progress-top">
+        <span class="progress-label" id="expensePeriodLabel">Today</span>
+      </div>
+      <div class="progress-value"><span id="expensePeriodTotal">฿0</span></div>
+      <div class="progress-sub" id="expenseCount">0 expenses</div>
+    </div>
+
+    <form class="add-form" id="expenseForm">
+      <input type="number" id="expenseAmount" placeholder="Amount (฿)" min="0" step="0.01" required />
+      <input type="text" id="expenseNote" placeholder="What was it for?" required />
+      <button type="submit" class="add-btn">Add</button>
+    </form>
+
+    <h2 class="section-title">History</h2>
+    <div class="list" id="expenseList"></div>
+    <div class="empty-state" id="expenseEmpty" hidden>No expenses in this range yet.</div>
+    <div class="scroll-spacer"></div>
+  </section>
+
+  <!-- ===== NOTES ===== -->
+  <section class="view" id="view-notes" data-view="notes" hidden>
+    <header class="page-header">
+      <button class="back-btn" data-back>‹</button>
+      <h1>Notes</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <form class="note-form" id="noteForm">
+      <textarea id="noteText" placeholder="How did today go?" required></textarea>
+      <button type="submit" class="add-btn full">Save note</button>
+    </form>
+
+    <h2 class="section-title">All notes</h2>
+    <div class="list" id="noteList"></div>
+    <div class="empty-state" id="noteEmpty" hidden>No notes yet — write your first one above.</div>
+    <div class="scroll-spacer"></div>
+  </section>
+
+  <!-- ===== HISTORY / ACTIVITY ===== -->
+  <section class="view" id="view-history" data-view="history" hidden>
+    <header class="page-header">
+      <button class="back-btn" data-back>‹</button>
+      <h1>Activity</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="list" id="activityList"></div>
+    <div class="empty-state" id="activityEmpty" hidden>Nothing yet — start tracking your day.</div>
+    <div class="scroll-spacer"></div>
+  </section>
+
+  <!-- ===== QUICK ADD MODAL ===== -->
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h3>Create new task</h3>
+      <form id="quickTaskForm">
+        <input type="text" id="quickTaskInput" placeholder="e.g. Read 10 pages" required />
+        <button type="submit" class="add-btn full">Add task</button>
+      </form>
+      <button class="modal-close" id="modalCloseBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-nav="home" aria-label="Home">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1Z" fill="currentColor"/></svg>
+    </button>
+    <button class="nav-btn" data-nav="expenses" aria-label="Expenses">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3c-1 1.6-2.6 2-4 3-2.4 1.7-4 4.3-4 7.2C4 17.4 7.6 21 12 21s8-3.6 8-7.8c0-2.9-1.6-5.5-4-7.2-1.4-1-3-1.4-4-3Z" fill="currentColor"/><text x="12" y="15.5" font-size="7" fill="#fff" text-anchor="middle" font-weight="700">฿</text></svg>
+    </button>
+    <button class="nav-btn" data-nav="notes" aria-label="Notes">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 2h9l3 3v17H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" fill="currentColor"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#fff" stroke-width="1.2"/></svg>
+    </button>
+    <button class="nav-btn" data-nav="history" aria-label="History">
+      <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9" fill="currentColor"/><path d="M12 7v5l3.5 3.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+    </button>
+  </nav>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

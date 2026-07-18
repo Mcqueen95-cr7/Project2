@@ -1,0 +1,369 @@
+(() => {
+  const STORAGE_KEY = 'daily-app:v1';
+  const DAILY_BUDGET = 500; // THB, used to compute the "Spending" stat %
+
+  const FIXED_TASKS = [
+    { id: 'learning', label: 'Learning for 1 hour', hours: 1 },
+    { id: 'gym', label: 'Gym', hours: 1 },
+    { id: 'relax', label: 'Relax', hours: 0.5 },
+  ];
+
+  const todayKey = (d = new Date()) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  function loadState() {
+    let raw;
+    try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { raw = null; }
+    const state = Object.assign({
+      taskDate: todayKey(),
+      taskDone: { learning: false, gym: false, relax: false },
+      customTasks: [], // {id, label, done}
+      expenses: [],    // {id, amount, note, date}
+      notes: [],       // {id, text, date}
+    }, raw || {});
+
+    // Reset the 3 fixed daily tasks when the day changes.
+    if (state.taskDate !== todayKey()) {
+      state.taskDate = todayKey();
+      state.taskDone = { learning: false, gym: false, relax: false };
+    }
+    return state;
+  }
+
+  let state = loadState();
+  const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // ---------- helpers ----------
+  const fmtMoney = (n) => `฿${Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmtDateTime = (iso) => {
+    const d = new Date(iso);
+    const isToday = todayKey(d) === todayKey();
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (isToday) return `Today, ${time}`;
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+  };
+
+  function startOfWeek(d) {
+    const day = d.getDay(); // 0 Sun
+    const diff = (day === 0 ? -6 : 1) - day; // Monday start
+    const monday = new Date(d);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(d.getDate() + diff);
+    return monday;
+  }
+
+  function inRange(iso, period) {
+    const d = new Date(iso);
+    const now = new Date();
+    if (period === 'total' || period === 'all') return true;
+    if (period === 'day') return todayKey(d) === todayKey(now);
+    if (period === 'week') return d >= startOfWeek(now);
+    if (period === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    if (period === 'year') return d.getFullYear() === now.getFullYear();
+    return true;
+  }
+
+  // ---------- navigation ----------
+  const views = ['home', 'expenses', 'notes', 'history'];
+  function showView(name) {
+    views.forEach(v => {
+      document.getElementById(`view-${v}`).hidden = v !== name;
+    });
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.nav === name);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => showView(btn.dataset.nav));
+  });
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => showView('home'));
+  });
+  document.getElementById('goExpensesCard').addEventListener('click', () => showView('expenses'));
+  document.getElementById('goNotesCard').addEventListener('click', () => showView('notes'));
+
+  // ---------- date label ----------
+  document.getElementById('todayLabel').textContent = new Date().toLocaleDateString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
+
+  // ---------- range filter pills (home, cosmetic scope for stats) ----------
+  let homeRange = 'all';
+  document.getElementById('rangeFilters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    document.querySelectorAll('#rangeFilters .filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    homeRange = btn.dataset.range;
+    renderHome();
+  });
+
+  // ---------- fixed task progress ----------
+  function taskProgressPct() {
+    const done = FIXED_TASKS.filter(t => state.taskDone[t.id]).length;
+    return Math.round((done / FIXED_TASKS.length) * 100);
+  }
+
+  document.querySelectorAll('#taskList input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.taskDone[cb.dataset.taskId] = cb.checked;
+      save();
+      renderHome();
+    });
+  });
+
+  document.getElementById('toggleTasksBtn').addEventListener('click', (e) => {
+    const list = document.getElementById('taskList');
+    const btn = e.currentTarget;
+    list.hidden = !list.hidden;
+    btn.classList.toggle('open', !list.hidden);
+    document.getElementById('progressSub').hidden = !list.hidden;
+  });
+
+  // ---------- quick-add "create new task" modal (extra/custom tasks) ----------
+  const modal = document.getElementById('modalBackdrop');
+  document.getElementById('createTaskBtn').addEventListener('click', () => {
+    modal.hidden = false;
+    document.getElementById('quickTaskInput').focus();
+  });
+  document.getElementById('modalCloseBtn').addEventListener('click', () => { modal.hidden = true; });
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.hidden = true; });
+
+  document.getElementById('quickTaskForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('quickTaskInput');
+    const label = input.value.trim();
+    if (!label) return;
+    state.customTasks.push({ id: uid(), label, done: false });
+    save();
+    input.value = '';
+    modal.hidden = true;
+    renderHome();
+  });
+
+  function renderExtraTasks() {
+    const wrap = document.getElementById('extraTasks');
+    const list = document.getElementById('extraTaskList');
+    if (!state.customTasks.length) { wrap.hidden = true; list.innerHTML = ''; return; }
+    wrap.hidden = false;
+    list.innerHTML = state.customTasks.map(t => `
+      <label class="extra-task-row" data-id="${t.id}">
+        <input type="checkbox" ${t.done ? 'checked' : ''} data-extra-toggle="${t.id}" />
+        <span class="task-box"></span>
+        <span class="task-text">${escapeHtml(t.label)}</span>
+        <button type="button" class="row-delete" data-extra-delete="${t.id}">×</button>
+      </label>
+    `).join('');
+
+    list.querySelectorAll('[data-extra-toggle]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const t = state.customTasks.find(x => x.id === cb.dataset.extraToggle);
+        if (t) { t.done = cb.checked; save(); }
+      });
+    });
+    list.querySelectorAll('[data-extra-delete]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.customTasks = state.customTasks.filter(x => x.id !== btn.dataset.extraDelete);
+        save();
+        renderExtraTasks();
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- expenses ----------
+  document.getElementById('expenseForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const amountEl = document.getElementById('expenseAmount');
+    const noteEl = document.getElementById('expenseNote');
+    const amount = parseFloat(amountEl.value);
+    const note = noteEl.value.trim();
+    if (!amount || amount <= 0 || !note) return;
+    state.expenses.unshift({ id: uid(), amount, note, date: new Date().toISOString() });
+    save();
+    amountEl.value = '';
+    noteEl.value = '';
+    renderExpenses();
+    renderHome();
+  });
+
+  let expensePeriod = 'day';
+  document.getElementById('expensePeriodFilters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    document.querySelectorAll('#expensePeriodFilters .filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    expensePeriod = btn.dataset.period;
+    renderExpenses();
+  });
+
+  const PERIOD_LABEL = { day: 'Today', week: 'This week', month: 'This month', total: 'All time' };
+
+  function renderExpenses() {
+    const items = state.expenses.filter(x => inRange(x.date, expensePeriod));
+    const total = items.reduce((s, x) => s + x.amount, 0);
+    document.getElementById('expensePeriodLabel').textContent = PERIOD_LABEL[expensePeriod];
+    document.getElementById('expensePeriodTotal').textContent = fmtMoney(total);
+    document.getElementById('expenseCount').textContent = `${items.length} expense${items.length === 1 ? '' : 's'}`;
+
+    const list = document.getElementById('expenseList');
+    const empty = document.getElementById('expenseEmpty');
+    empty.hidden = items.length > 0;
+    list.innerHTML = items.map(x => `
+      <div class="list-row" data-id="${x.id}">
+        <div class="row-icon">฿</div>
+        <div class="row-body">
+          <div class="row-title">${escapeHtml(x.note)}</div>
+          <div class="row-sub">${fmtDateTime(x.date)}</div>
+        </div>
+        <div class="row-amount">${fmtMoney(x.amount)}</div>
+        <button type="button" class="row-delete" data-expense-delete="${x.id}">×</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-expense-delete]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.expenses = state.expenses.filter(x => x.id !== btn.dataset.expenseDelete);
+        save();
+        renderExpenses();
+        renderHome();
+      });
+    });
+  }
+
+  // ---------- notes ----------
+  document.getElementById('noteForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const textEl = document.getElementById('noteText');
+    const text = textEl.value.trim();
+    if (!text) return;
+    state.notes.unshift({ id: uid(), text, date: new Date().toISOString() });
+    save();
+    textEl.value = '';
+    renderNotes();
+    renderHome();
+  });
+
+  function renderNotes() {
+    const list = document.getElementById('noteList');
+    const empty = document.getElementById('noteEmpty');
+    empty.hidden = state.notes.length > 0;
+    list.innerHTML = state.notes.map(n => `
+      <div class="note-card" data-id="${n.id}">
+        <div class="row-sub">${fmtDateTime(n.date)}</div>
+        <div class="note-body">${escapeHtml(n.text)}</div>
+        <div class="note-footer">
+          <button type="button" class="row-delete" data-note-delete="${n.id}">×</button>
+        </div>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-note-delete]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.notes = state.notes.filter(n => n.id !== btn.dataset.noteDelete);
+        save();
+        renderNotes();
+        renderHome();
+      });
+    });
+  }
+
+  // ---------- activity feed ----------
+  function renderActivity() {
+    const items = [];
+    state.expenses.forEach(x => items.push({ type: 'expense', date: x.date, text: `Spent ${fmtMoney(x.amount)} on ${x.note}` }));
+    state.notes.forEach(n => items.push({ type: 'note', date: n.date, text: n.text.slice(0, 80) + (n.text.length > 80 ? '…' : '') }));
+    items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const list = document.getElementById('activityList');
+    const empty = document.getElementById('activityEmpty');
+    empty.hidden = items.length > 0;
+    list.innerHTML = items.map(it => `
+      <div class="list-row">
+        <div class="row-icon">${it.type === 'expense' ? '฿' : '📝'}</div>
+        <div class="row-body">
+          <div class="row-title">${escapeHtml(it.text)}</div>
+          <div class="row-sub">${fmtDateTime(it.date)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ---------- home render ----------
+  function renderHome() {
+    // task checkboxes + progress
+    FIXED_TASKS.forEach(t => {
+      const cb = document.querySelector(`#taskList input[data-task-id="${t.id}"]`);
+      if (cb) cb.checked = !!state.taskDone[t.id];
+    });
+    const pct = taskProgressPct();
+    document.getElementById('progressPct').textContent = pct;
+    const doneCount = FIXED_TASKS.filter(t => state.taskDone[t.id]).length;
+    document.getElementById('checkpointsSub').textContent = `${doneCount}/${FIXED_TASKS.length} checkpoints done`;
+    document.getElementById('progressBarFill').style.width = `${pct}%`;
+
+    // today's expense mini card
+    const todayTotal = state.expenses
+      .filter(x => inRange(x.date, 'day'))
+      .reduce((s, x) => s + x.amount, 0);
+    document.getElementById('todayExpenseValue').textContent = fmtMoney(todayTotal);
+
+    // notes mini card
+    const latestNote = state.notes[0];
+    if (latestNote) {
+      const firstWord = latestNote.text.trim().split(/\s+/)[0] || '—';
+      document.getElementById('noteInitial').textContent = firstWord.slice(0, 10);
+      document.getElementById('noteSub').textContent = latestNote.text.length > 28
+        ? latestNote.text.slice(0, 28) + '…'
+        : latestNote.text;
+    } else {
+      document.getElementById('noteInitial').textContent = '—';
+      document.getElementById('noteSub').textContent = 'How today went';
+    }
+
+    // stats: total time (hours from completed fixed tasks today)
+    const totalHours = FIXED_TASKS.filter(t => state.taskDone[t.id]).reduce((s, t) => s + t.hours, 0);
+    const h = Math.floor(totalHours);
+    const m = Math.round((totalHours - h) * 60);
+    document.getElementById('statTime').textContent = `${h}h ${m}m`;
+
+    // stats: productivity = fixed-task progress
+    document.getElementById('statProductivity').textContent = `${pct}%`;
+
+    // stats: spending vs daily budget, scoped by the home range filter
+    const rangePeriod = homeRange === 'all' ? 'total' : homeRange;
+    const rangeTotal = state.expenses.filter(x => inRange(x.date, rangePeriod)).reduce((s, x) => s + x.amount, 0);
+    const budgetForRange = rangePeriod === 'day' ? DAILY_BUDGET
+      : rangePeriod === 'month' ? DAILY_BUDGET * 30
+      : rangePeriod === 'year' ? DAILY_BUDGET * 365
+      : DAILY_BUDGET * 30;
+    const spendingPct = budgetForRange > 0 ? Math.min((rangeTotal / budgetForRange) * 100, 999) : 0;
+    document.getElementById('statSpending').textContent = `${spendingPct.toFixed(spendingPct < 100 ? 2 : 0)}%`;
+
+    renderExtraTasks();
+  }
+
+  // ---------- init ----------
+  renderHome();
+  renderExpenses();
+  renderNotes();
+  renderActivity();
+  showView('home');
+
+  // keep activity/notes/expenses fresh whenever their tab is opened
+  document.querySelector('[data-nav="history"]').addEventListener('click', renderActivity);
+  document.querySelector('[data-nav="expenses"]').addEventListener('click', renderExpenses);
+  document.querySelector('[data-nav="notes"]').addEventListener('click', renderNotes);
+})();
