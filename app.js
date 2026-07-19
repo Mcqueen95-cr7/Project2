@@ -24,6 +24,7 @@
       customTasks: [], // {id, label, done}
       expenses: [],    // {id, amount, note, date}
       notes: [],       // {id, text, date}
+      schedule: [],    // {id, date: 'YYYY-MM-DD', time: 'HH:MM', title, done}
     }, raw || {});
 
     // Reset the 3 fixed daily tasks when the day changes.
@@ -69,7 +70,7 @@
   }
 
   // ---------- navigation ----------
-  const views = ['home', 'expenses', 'notes', 'history'];
+  const views = ['home', 'expenses', 'notes', 'schedule', 'history'];
   function showView(name) {
     views.forEach(v => {
       document.getElementById(`view-${v}`).hidden = v !== name;
@@ -280,6 +281,128 @@
     });
   }
 
+  // ---------- schedule + calendar ----------
+  let calendarMonth = new Date();
+  calendarMonth.setDate(1);
+  let selectedDate = todayKey();
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function fmtSelectedDate(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const isToday = key === todayKey();
+    return isToday ? 'Events today' : `Events on ${date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`;
+  }
+
+  function renderCalendar() {
+    document.getElementById('calMonthLabel').textContent =
+      `${MONTH_NAMES[calendarMonth.getMonth()]} ${calendarMonth.getFullYear()}`;
+
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const eventDates = new Set(state.schedule.map(ev => ev.date));
+    const cells = [];
+
+    for (let i = firstWeekday - 1; i >= 0; i--) {
+      cells.push({ day: daysInPrevMonth - i, otherMonth: true, key: null });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({ day: d, otherMonth: false, key });
+    }
+    let nextMonthDay = 1;
+    while (cells.length % 7 !== 0) {
+      cells.push({ day: nextMonthDay++, otherMonth: true, key: null });
+    }
+
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = cells.map(c => {
+      if (c.otherMonth) {
+        return `<button type="button" class="calendar-day other-month empty" disabled>${c.day}</button>`;
+      }
+      const classes = ['calendar-day'];
+      if (c.key === todayKey()) classes.push('today');
+      if (c.key === selectedDate) classes.push('selected');
+      const hasEvent = eventDates.has(c.key);
+      return `<button type="button" class="${classes.join(' ')}" data-date="${c.key}">${c.day}${hasEvent ? '<span class="dot"></span>' : ''}</button>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-date]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedDate = btn.dataset.date;
+        renderCalendar();
+        renderScheduleList();
+      });
+    });
+  }
+
+  document.getElementById('calPrevBtn').addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+    renderCalendar();
+  });
+  document.getElementById('calNextBtn').addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+    renderCalendar();
+  });
+
+  document.getElementById('scheduleForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const timeEl = document.getElementById('scheduleTime');
+    const titleEl = document.getElementById('scheduleTitle');
+    const time = timeEl.value;
+    const title = titleEl.value.trim();
+    if (!time || !title) return;
+    state.schedule.push({ id: uid(), date: selectedDate, time, title, done: false });
+    save();
+    timeEl.value = '';
+    titleEl.value = '';
+    renderCalendar();
+    renderScheduleList();
+  });
+
+  function renderScheduleList() {
+    document.getElementById('scheduleDateLabel').textContent = fmtSelectedDate(selectedDate);
+
+    const items = state.schedule
+      .filter(ev => ev.date === selectedDate)
+      .sort((a, b) => a.time.localeCompare(b.time));
+
+    const list = document.getElementById('scheduleList');
+    const empty = document.getElementById('scheduleEmpty');
+    empty.hidden = items.length > 0;
+
+    list.innerHTML = items.map(ev => `
+      <div class="list-row schedule-row ${ev.done ? 'done' : ''}" data-id="${ev.id}">
+        <button type="button" class="schedule-check ${ev.done ? 'checked' : ''}" data-schedule-toggle="${ev.id}" aria-label="Mark done"></button>
+        <div class="row-time">${ev.time}</div>
+        <div class="row-body">
+          <div class="row-title">${escapeHtml(ev.title)}</div>
+        </div>
+        <button type="button" class="row-delete" data-schedule-delete="${ev.id}">×</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('[data-schedule-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ev = state.schedule.find(x => x.id === btn.dataset.scheduleToggle);
+        if (ev) { ev.done = !ev.done; save(); renderScheduleList(); }
+      });
+    });
+    list.querySelectorAll('[data-schedule-delete]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.schedule = state.schedule.filter(x => x.id !== btn.dataset.scheduleDelete);
+        save();
+        renderCalendar();
+        renderScheduleList();
+      });
+    });
+  }
+
   // ---------- activity feed ----------
   function renderActivity() {
     const items = [];
@@ -359,11 +482,17 @@
   renderHome();
   renderExpenses();
   renderNotes();
+  renderCalendar();
+  renderScheduleList();
   renderActivity();
   showView('home');
 
-  // keep activity/notes/expenses fresh whenever their tab is opened
+  // keep activity/notes/expenses/schedule fresh whenever their tab is opened
   document.querySelector('[data-nav="history"]').addEventListener('click', renderActivity);
   document.querySelector('[data-nav="expenses"]').addEventListener('click', renderExpenses);
   document.querySelector('[data-nav="notes"]').addEventListener('click', renderNotes);
+  document.querySelector('[data-nav="schedule"]').addEventListener('click', () => {
+    renderCalendar();
+    renderScheduleList();
+  });
 })();

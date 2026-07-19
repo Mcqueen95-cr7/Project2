@@ -185,6 +185,43 @@
     <div class="scroll-spacer"></div>
   </section>
 
+  <!-- ===== SCHEDULE / CALENDAR ===== -->
+  <section class="view" id="view-schedule" data-view="schedule" hidden>
+    <header class="page-header">
+      <button class="back-btn" data-back>‹</button>
+      <h1>Schedule</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="calendar-card">
+      <div class="calendar-head">
+        <button type="button" class="calendar-nav-btn" id="calPrevBtn" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="calendar-month-label" id="calMonthLabel">July 2026</span>
+        <button type="button" class="calendar-nav-btn" id="calNextBtn" aria-label="Next month">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="calendar-weekdays">
+        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <h2 class="section-title" id="scheduleDateLabel">Events today</h2>
+
+    <form class="add-form" id="scheduleForm">
+      <input type="time" id="scheduleTime" required />
+      <input type="text" id="scheduleTitle" placeholder="e.g. Gym" required />
+      <button type="submit" class="add-btn">Add</button>
+    </form>
+
+    <div class="list" id="scheduleList"></div>
+    <div class="empty-state" id="scheduleEmpty" hidden>No events on this day yet.</div>
+    <div class="scroll-spacer"></div>
+  </section>
+
   <!-- ===== HISTORY / ACTIVITY ===== -->
   <section class="view" id="view-history" data-view="history" hidden>
     <header class="page-header">
@@ -221,6 +258,9 @@
     </button>
     <button class="nav-btn" data-nav="notes" aria-label="Notes">
       <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 2h9l3 3v17H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" fill="currentColor"/><path d="M8 9h8M8 13h8M8 17h5" stroke="#fff" stroke-width="1.2"/></svg>
+    </button>
+    <button class="nav-btn" data-nav="schedule" aria-label="Schedule">
+      <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="5" width="16" height="15" rx="3" fill="currentColor"/><path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 10h16" stroke="#fff" stroke-width="1.4"/><circle cx="8.2" cy="14" r="1.1" fill="#fff"/><circle cx="12" cy="14" r="1.1" fill="#fff"/><circle cx="15.8" cy="14" r="1.1" fill="#fff"/></svg>
     </button>
     <button class="nav-btn" data-nav="history" aria-label="History">
       <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9" fill="currentColor"/><path d="M12 7v5l3.5 3.5" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
