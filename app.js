@@ -202,6 +202,10 @@
   }
 
   // ---------- expenses ----------
+  const expenseDateEl = document.getElementById('expenseDate');
+  expenseDateEl.max = todayKey();
+  expenseDateEl.value = todayKey();
+
   document.getElementById('expenseForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const amountEl = document.getElementById('expenseAmount');
@@ -209,10 +213,18 @@
     const amount = parseFloat(amountEl.value);
     const note = noteEl.value.trim();
     if (!amount || amount <= 0 || !note) return;
-    state.expenses.unshift({ id: uid(), amount, note, date: new Date().toISOString() });
+
+    // Combine the chosen date with the current time-of-day so back-dated
+    // expenses (e.g. "forgot to log yesterday") still sort/display sensibly.
+    const now = new Date();
+    const [y, m, d] = (expenseDateEl.value || todayKey()).split('-').map(Number);
+    const date = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+
+    state.expenses.unshift({ id: uid(), amount, note, date: date.toISOString() });
     save();
     amountEl.value = '';
     noteEl.value = '';
+    expenseDateEl.value = todayKey();
     renderExpenses();
     renderHome();
   });
