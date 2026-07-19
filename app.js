@@ -95,6 +95,23 @@
     weekday: 'short', day: 'numeric', month: 'short',
   });
 
+  // ---------- greeting (real time, GMT+7) ----------
+  function updateGreeting() {
+    const hour = Number(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Bangkok', hour: 'numeric', hour12: false,
+    }).format(new Date()));
+
+    const word = hour < 5 ? 'Good Night'
+      : hour < 12 ? 'Good Morning'
+      : hour < 18 ? 'Good Afternoon'
+      : hour < 22 ? 'Good Evening'
+      : 'Good Night';
+
+    document.getElementById('greetingWord').textContent = word;
+  }
+  updateGreeting();
+  setInterval(updateGreeting, 60 * 1000);
+
   // ---------- range filter pills (home, cosmetic scope for stats) ----------
   let homeRange = 'all';
   document.getElementById('rangeFilters').addEventListener('click', (e) => {
